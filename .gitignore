@@ -1,0 +1,8 @@
+.idea/
+venv/
+repos/
+tokenizers/
+github_data/
+__pycache__/
+config.py
+*.sqlite
