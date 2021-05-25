@@ -6,7 +6,7 @@ from config import n_positions
 MAX_CHAR_LENGTH = n_positions
 MIN_CHAR_LENGTH = MAX_CHAR_LENGTH / 2
 
-assert len(sys.argv) == 2, "Invalid number of arguments"
+assert len(sys.argv) == 2, "Enter output dataset name as fist argument (.txt)"
 OUTPUT_PATH = sys.argv[1]
 
 NEWLINE_CHAR = "<newl>"

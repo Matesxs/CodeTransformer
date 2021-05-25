@@ -3,7 +3,9 @@ from transformers import PreTrainedTokenizerFast
 import os
 import sys
 
-TOKENIZER = "BLTokenizer.json"
+assert len(sys.argv) == 2, "Enter output tokenizer path as first argument (.json)"
+TOKENIZER = sys.argv[1]
+
 PATHS = [os.path.join("github_data", f) for f in os.listdir("github_data")]
 TRAIN = True
 

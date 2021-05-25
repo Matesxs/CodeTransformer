@@ -2,9 +2,16 @@ from transformers import PreTrainedTokenizerFast, GPT2LMHeadModel
 import config
 import os
 import sys
+import argparse
 
-TOKENIZER = "BLTokenizer.json"
-MODEL_PATH = "GPyT/checkpoint-44000"
+parser = argparse.ArgumentParser()
+parser.add_argument("--tokenizer", "-t", help="Path to tokenizer", required=True, type=str)
+parser.add_argument("--model", "-m", help="Path to valid model forlder", required=True, type=str)
+
+args = parser.parse_args()
+
+TOKENIZER = args.tokenizer
+MODEL_PATH = args.model
 
 if not os.path.exists("tokenizers"): os.mkdir("tokenizers")
 TOKENIZER = os.path.join("tokenizers", TOKENIZER)
