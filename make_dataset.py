@@ -38,24 +38,27 @@ with open(OUTPUT_PATH, "a", encoding="utf-8") as f:
         if data_length <= MAX_CHAR_LENGTH:
           f.write(f"{fd}\n")
         else:
+          # If section is too large then split it
           sd = fd.split(f"{NEWLINE_CHAR}{NEWLINE_CHAR}")
           substring = ""
+
+          # Iterate over split parts
           for split in sd:
-            new_substring = substring + split + f"{NEWLINE_CHAR}{NEWLINE_CHAR}"
-            len_of_substring = len(new_substring)
+            # Create new substring from old substring and current split part
+            substring += split + f"{NEWLINE_CHAR}{NEWLINE_CHAR}"
+            len_of_substring = len(substring)
 
+            # If length of current new substring is enough process it
             if MIN_CHAR_LENGTH <= len_of_substring:
+              # If length is in top boundaries
               if len_of_substring <= MAX_CHAR_LENGTH:
-                f.write(f"{new_substring}\n")
-                substring = ""
-                continue
-              elif substring and MIN_CHAR_LENGTH <= len(substring) <= MAX_CHAR_LENGTH:
                 f.write(f"{substring}\n")
-                substring = split + f"{NEWLINE_CHAR}{NEWLINE_CHAR}"
-                continue
-              else:
-                break
 
-            substring = new_substring
+              # If not check newer part
+              elif MIN_CHAR_LENGTH <= len(split) <= MAX_CHAR_LENGTH:
+                f.write(f"{split}{NEWLINE_CHAR}{NEWLINE_CHAR}\n")
+
+              # If not then delete substring and start again
+              substring = ""
     except:
       pass
