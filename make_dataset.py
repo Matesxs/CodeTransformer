@@ -29,7 +29,9 @@ if os.path.exists(OUTPUT_PATH): os.remove(OUTPUT_PATH)
 with open(OUTPUT_PATH, "a", encoding="utf-8") as f:
   for file_path in tqdm(python_files):
     try:
-      data = open(file_path, "r").read()
+      file = open(file_path, "r")
+      data = file.read()
+      file.close()
 
       data_length = len(data)
       if 200 < data_length:
