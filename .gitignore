@@ -4,5 +4,5 @@ repos/
 tokenizers/
 github_data/
 __pycache__/
-config.py
+config.toml
 *.sqlite

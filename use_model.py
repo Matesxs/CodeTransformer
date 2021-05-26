@@ -1,8 +1,8 @@
 from transformers import PreTrainedTokenizerFast, GPT2LMHeadModel
-import config
 import os
 import sys
 import argparse
+from config_loader import Config
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--tokenizer", "-t", help="Path to tokenizer", required=True, type=str)
@@ -34,7 +34,7 @@ model = GPT2LMHeadModel.from_pretrained(MODEL_PATH).to("cuda")
 while True:
   inp = input(">>> ")
   input_ids = tokenizer.encode(inp, return_tensors="pt").to("cuda")
-  beam_output = model.generate(input_ids, max_length=config.n_positions, num_beams=10, temperature=0.7, no_repeat_ngram_size=5, num_return_sequences=1)
+  beam_output = model.generate(input_ids, max_length=Config.n_positions, num_beams=10, temperature=0.7, no_repeat_ngram_size=5, num_return_sequences=1)
 
   for beam in beam_output:
     out = tokenizer.decode(beam)

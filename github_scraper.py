@@ -1,13 +1,14 @@
 import github.GithubException
 from github import Github
+from tqdm import tqdm
 import time
 from datetime import datetime
 import os
-from multiprocessing import Process, JoinableQueue
+import multiprocessing
 import subprocess
 from clean_repos import clean_folder_recursive
 import argparse
-from config import GITHUB_APP_TOKEN
+from config_loader import Config
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--search", "-s", help="Search phrase (blank for all)", required=False, default=None, type=str)
@@ -30,14 +31,14 @@ MAX_REPO_SIZE_MB = args.max_repo_size
 
 BLACKLIST_PHRASES = args.blacklist.split(";")
 
-git = Github(GITHUB_APP_TOKEN)
+git = Github(Config.github_token)
 
 end_time = time.time() - DAYS_BACK_OFFSET * 86400
 start_time = end_time - 86400
 
 if not os.path.exists("repos"): os.mkdir("repos")
 
-def download_repo(queue:JoinableQueue):
+def download_repo(queue:multiprocessing.JoinableQueue):
   while True:
     pld = None
 
@@ -62,10 +63,10 @@ if __name__ == '__main__':
   blacklist_repos = []
 
   # Create task queue for workers
-  work_queue = JoinableQueue(maxsize=MAX_QUEUE_SIZE)
+  work_queue = multiprocessing.JoinableQueue(maxsize=MAX_QUEUE_SIZE)
 
   # Create downloader processes
-  workers = [Process(target=download_repo, args=(work_queue,), daemon=True) for _ in range(NUM_OF_WORKERS)]
+  workers = [multiprocessing.Process(target=download_repo, args=(work_queue,), daemon=True) for _ in range(NUM_OF_WORKERS)]
   for worker in workers:
     worker.start()
 
@@ -88,7 +89,7 @@ if __name__ == '__main__':
       try:
         for repository in repositories:
           # Slow down request calls
-          time.sleep(0.1)
+          time.sleep(Config.github_req_delay)
 
           repo_name = repository.name
           owner_login = repository.owner.login.replace('.', '').replace('/', '')
@@ -122,8 +123,8 @@ if __name__ == '__main__':
           tmp_repos.append(repo_path)
           work_queue.put([repo_path, repository.clone_url])
       except github.RateLimitExceededException:
-        print("\nGithub pull limit exceeded")
-        time.sleep(120)
+        print("\nGithub pull limit exceeded\nWaiting")
+        for _ in tqdm(range(Config.error_delay_seconds), unit="s"): time.sleep(1)
 
       print(f"\nWaiting for batch of {len(tmp_repos)} repositories to finish cloning")
       work_queue.join()
@@ -133,11 +134,11 @@ if __name__ == '__main__':
       print("User interrupt")
       break
     except github.RateLimitExceededException:
-      print("\nGithub pull limit exceeded")
-      time.sleep(120)
+      print("\nGithub pull limit exceeded\nWaiting")
+      for _ in tqdm(range(Config.error_delay_seconds), unit="s"): time.sleep(1)
     except Exception as e:
-      print(f"\nSomething went wrong\n{e}")
-      time.sleep(120)
+      print(f"\nSomething went wrong\n{e}\nWaiting")
+      for _ in tqdm(range(Config.error_delay_seconds), unit="s"): time.sleep(1)
 
   for worker in workers:
     if worker.is_alive():

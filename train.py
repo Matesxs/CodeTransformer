@@ -1,16 +1,16 @@
 from transformers import PreTrainedTokenizerFast, GPT2Config, GPT2LMHeadModel, DataCollatorForLanguageModeling, Trainer, TrainingArguments
 from datasets import load_dataset
-import config
+from config_loader import Config
 import os
 import sys
 
-assert len(sys.argv) == 2, "Enter input tokenizer path as first argument (.json)"
+assert len(sys.argv) == 2, "Enter input tokenizer name as first argument (.json)"
 TOKENIZER = sys.argv[1]
 
 PATHS = [os.path.join("github_data", f) for f in os.listdir("github_data")]
 
-EPOCHS = 1
-BATCH_SIZE = 4
+EPOCHS = Config.epochs
+BATCH_SIZE = Config.batch_size
 
 if not os.path.exists("tokenizers"): os.mkdir("tokenizers")
 TOKENIZER = os.path.join("tokenizers", TOKENIZER)
@@ -29,11 +29,11 @@ tokenizer.add_special_tokens({
 })
 
 mod_config = GPT2Config(vocab_size=tokenizer.vocab_size, bos_token_id=tokenizer.bos_token_id, eos_token_id=tokenizer.eos_token_id,
-                        n_positions=config.n_positions, n_ctx=config.n_ctx, n_embd=config.n_embd, n_layer=config.n_layer, n_head=config.n_head)
+                        n_positions=Config.n_positions, n_ctx=Config.n_ctx, n_embd=Config.n_embd, n_layer=Config.n_layer, n_head=Config.n_head)
 model = GPT2LMHeadModel(mod_config)
 
 def encode(lines):
-  return tokenizer(lines["text"], add_special_tokens=True, truncation=True, max_length=config.n_positions)
+  return tokenizer(lines["text"], add_special_tokens=True, truncation=True, max_length=Config.n_positions)
 
 dataset = load_dataset("text", data_files=PATHS)
 dataset.set_transform(encode)
@@ -48,10 +48,11 @@ training_args = TrainingArguments(
   overwrite_output_dir=True,
   num_train_epochs=EPOCHS,
   per_device_train_batch_size=BATCH_SIZE,
-  save_steps=1_000,
+  save_steps=Config.save_steps,
   save_total_limit=2,
   prediction_loss_only=True,
   remove_unused_columns=False,
+  dataloader_num_workers=2
 )
 
 trainer = Trainer(

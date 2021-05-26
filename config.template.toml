@@ -1,0 +1,27 @@
+[general]
+error_delay_seconds = 120
+
+[github]
+github_app_token = "" # Here put your github app token
+github_req_delay = 0.1
+
+[model]
+# The maximum sequence length that this model might ever be used with
+n_positions = 512
+
+# Dimensionality of the causal mask (usually same as n_positions)
+n_ctx = 512
+
+# Dimensionality of the embeddings and hidden states.
+n_embd = 768
+
+# Number of hidden layers in the Transformer encoder.
+n_layer = 12
+
+# Number of attention heads for each attention layer in the Transformer encoder.
+n_head = 12
+
+[training]
+batch_size = 4
+epochs = 1
+save_steps = 1_000

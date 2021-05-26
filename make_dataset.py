@@ -1,9 +1,9 @@
 import os
 import sys
 from tqdm import tqdm
-from config import n_positions
+from config_loader import Config
 
-MAX_CHAR_LENGTH = n_positions
+MAX_CHAR_LENGTH = Config.n_positions
 MIN_CHAR_LENGTH = MAX_CHAR_LENGTH / 2
 
 assert len(sys.argv) == 2, "Enter output dataset name as fist argument (.txt)"
@@ -41,13 +41,21 @@ with open(OUTPUT_PATH, "a", encoding="utf-8") as f:
           sd = fd.split(f"{NEWLINE_CHAR}{NEWLINE_CHAR}")
           substring = ""
           for split in sd:
-            substring += split + f"{NEWLINE_CHAR}{NEWLINE_CHAR}"
-            len_of_substring = len(substring)
+            new_substring = substring + split + f"{NEWLINE_CHAR}{NEWLINE_CHAR}"
+            len_of_substring = len(new_substring)
+
             if MIN_CHAR_LENGTH <= len_of_substring:
               if len_of_substring <= MAX_CHAR_LENGTH:
-                f.write(f"{substring}\n")
+                f.write(f"{new_substring}\n")
                 substring = ""
+                continue
+              elif substring and MIN_CHAR_LENGTH <= len(substring) <= MAX_CHAR_LENGTH:
+                f.write(f"{substring}\n")
+                substring = split + f"{NEWLINE_CHAR}{NEWLINE_CHAR}"
+                continue
               else:
                 break
+
+            substring = new_substring
     except:
       pass
