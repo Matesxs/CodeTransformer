@@ -98,28 +98,34 @@ if __name__ == '__main__':
           print(f"\nCurrent time: {start_time_str} - {end_time_str} ({DAYS_BACK_OFFSET + i} DBO)")
           print(f"Repository: {owner_login}/{repo_name}")
 
+          # Check if this repo isnt already downloaded or in queue for download
           if os.path.exists(repo_path) or repo_path in tmp_repos:
             print("Repository already downloaded")
             continue
 
+          # Check if this repo is not on blacklost (to save some github api calls)
           if repo_path in blacklist_repos:
             print("Repository already on blacklist")
             continue
 
+          # Check if repo name dont contain any blacklist phrase
           blplut = [(p in repo_name) for p in BLACKLIST_PHRASES]
           if any(blplut):
             print("Repository on blacklist")
             blacklist_repos.append(repo_path)
             continue
 
+          # Get size of repo
           repo_size = repository.size / 1000
           print(f"Repository size: {repo_size}MB")
 
+          # Ignore too large repos (some still could pass because they can have some other github repos as dependency)
           if repo_size > MAX_REPO_SIZE_MB:
             print(f"Repository too large")
             blacklist_repos.append(repo_path)
             continue
 
+          # Append repo to work queue
           tmp_repos.append(repo_path)
           work_queue.put([repo_path, repository.clone_url])
       except github.RateLimitExceededException:

@@ -20,6 +20,7 @@ def clean_folder_recursive(path:str="repos", tqdm_active:bool=True):
         time.sleep(60)
         break
 
+      # Delete any blacklisted folder rightaway
       if any([path_ends_with(dirpath, end) for end in BLACKLIST_FOLDERS]):
         rmtree(dirpath)
         continue
