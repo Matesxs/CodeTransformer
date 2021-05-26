@@ -5,7 +5,7 @@ import argparse
 from config_loader import Config
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--tokenizer", "-t", help="Path to tokenizer", required=True, type=str)
+parser.add_argument("--tokenizer", "-t", help="Path to tokenizer", required=False, default="BLTokenizer.json", type=str)
 parser.add_argument("--model", "-m", help="Path to valid model forlder", required=True, type=str)
 
 args = parser.parse_args()
