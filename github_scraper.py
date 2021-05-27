@@ -19,6 +19,7 @@ parser.add_argument("--queue", "-q", help="Max repository queue length", require
 parser.add_argument("--max_repo_size", "-M", help="Maximum size of repository to clone in MB", required=False, default=500, type=int)
 parser.add_argument("--clear", "-c", help="Clean downloaded repository rightaway", action="store_true")
 parser.add_argument("--blacklist", "-b", help="Blacklisted names separated by ;", required=False, default="hack;test", type=str)
+parser.add_argument("--debug", "-d", help="Show more info about cloned repositories", action="store_true")
 
 args = parser.parse_args()
 
@@ -113,11 +114,14 @@ if __name__ == '__main__':
       end_time -= 86400
       start_time -= 86400
 
-      print(f"Found {repositories.totalCount} repos")
+      number_of_repositories = repositories.totalCount
+      print(f"\nFound {number_of_repositories} repos")
       print(f"Workers allive: {len([worker for worker in workers if worker.is_alive])}")
+      if not args.debug:
+        print(f"Current time: {start_time_str} - {end_time_str} ({DAYS_BACK_OFFSET + i} DBO)")
 
       try:
-        for repository in repositories:
+        for repository in tqdm(repositories, total=number_of_repositories, unit="rep"):
           # Slow down request calls
           time.sleep(Config.github_req_delay)
 
@@ -125,8 +129,9 @@ if __name__ == '__main__':
           owner_login = repository.owner.login.replace('.', '').replace('/', '')
           repo_path = f"repos/{owner_login}/{repo_name}"
 
-          print(f"\nCurrent time: {start_time_str} - {end_time_str} ({DAYS_BACK_OFFSET + i} DBO)")
-          print(f"Repository: {owner_login}/{repo_name}")
+          if args.debug:
+            print(f"\nCurrent time: {start_time_str} - {end_time_str} ({DAYS_BACK_OFFSET + i} DBO)")
+            print(f"Repository: {owner_login}/{repo_name}")
 
           # Check if this repo isnt already downloaded or in queue for download
           repos_in_progress_access_lock.acquire()
@@ -134,7 +139,8 @@ if __name__ == '__main__':
           repos_in_progress_access_lock.release()
 
           if os.path.exists(repo_path) or repo_in_progress:
-            print("Repository already downloaded")
+            if args.debug:
+              print("Repository already downloaded")
             continue
 
           # Check if this repo is not on blacklost (to save some github api calls)
@@ -142,13 +148,14 @@ if __name__ == '__main__':
           repo_in_blacklist = repo_path in blacklist_repos
           blacklist_repos_lock.release()
           if repo_in_blacklist:
-            print("Repository already on blacklist")
+            if args.debug:
+              print("Repository already on blacklist")
             continue
 
           # Check if repo name dont contain any blacklist phrase
           blplut = [(p in repo_name) for p in BLACKLIST_PHRASES]
           if any(blplut):
-            print("Repository on blacklist")
+            #print("Repository on blacklist")
             blacklist_repos_lock.acquire()
             blacklist_repos.append(repo_path)
             blacklist_repos_lock.release()
@@ -156,11 +163,14 @@ if __name__ == '__main__':
 
           # Get size of repo
           repo_size = repository.size / 1000
-          print(f"Repository size: {repo_size}MB")
+          if args.debug:
+            print(f"Repository size: {repo_size}MB")
 
           # Ignore too large repos (some still could pass because they can have some other github repos as dependency)
           if repo_size > MAX_REPO_SIZE_MB:
-            print(f"Repository too large")
+            if args.debug:
+              print(f"Repository too large")
+
             blacklist_repos_lock.acquire()
             blacklist_repos.append(repo_path)
             blacklist_repos_lock.release()
