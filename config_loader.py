@@ -23,6 +23,7 @@ class Config:
 
   github_token = get_attr("github", "github_app_token")
   github_req_delay = get_attr("github", "github_req_delay")
+  clone_timeout_seconds = get_attr("github", "clone_timeout_seconds")
 
   n_positions = get_attr("model", "n_positions")
   n_ctx = get_attr("model", "n_ctx")

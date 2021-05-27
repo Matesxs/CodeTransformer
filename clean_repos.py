@@ -3,7 +3,7 @@ import time
 from tqdm import tqdm
 from git import rmtree
 
-BLACKLIST_FOLDERS = [".git", ".venv"]
+BLACKLIST_FOLDERS = [".git", ".venv", "__pycache__"]
 
 def path_ends_with(path, ending):
   return path.endswith(ending) or path.endswith(rf"{ending}\\") or path.endswith(f"{ending}/")

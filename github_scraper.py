@@ -13,7 +13,7 @@ from config_loader import Config
 parser = argparse.ArgumentParser()
 parser.add_argument("--search", "-s", help="Search phrase (blank for all)", required=False, default=None, type=str)
 parser.add_argument("--language", "-l", help="Language to search for", required=False, default="python", type=str)
-parser.add_argument("--offset", "-o", help="Time offset in days", required=False, default=0, type=int)
+parser.add_argument("--offset", "-O", help="Time offset in days", required=False, default=0, type=int)
 parser.add_argument("--workers", "-w", help="Number of downloader workers", required=False, default=1, type=int)
 parser.add_argument("--queue", "-q", help="Max repository queue length", required=False, default=50, type=int)
 parser.add_argument("--max_repo_size", "-M", help="Maximum size of repository to clone in MB", required=False, default=500, type=int)
@@ -38,35 +38,66 @@ start_time = end_time - 86400
 
 if not os.path.exists("repos"): os.mkdir("repos")
 
-def download_repo(queue:multiprocessing.JoinableQueue):
-  while True:
-    pld = None
+class WorkerProcess(multiprocessing.Process):
+  def __init__(self, queue, repos_in_progress, repos_in_progress_access_lock, blacklist_repos, blacklist_repos_lock) -> None:
+    super(WorkerProcess, self).__init__()
+    self.daemon = True
 
-    try:
-      pld = queue.get()
+    self.queue = queue
+    self.repos_in_progress = repos_in_progress
+    self.repos_in_progress_access_lock = repos_in_progress_access_lock
+    self.blacklist_repos = blacklist_repos
+    self.blacklist_repos_lock = blacklist_repos_lock
 
-      if isinstance(pld, list):
-        subprocess.call(['git', 'clone', str(pld[1]), str(pld[0])], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+  def run(self) -> None:
+    while True:
+      pld = None
+      clone_process = None
 
-        # Clean data rightaway
-        if args.clear:
-          clean_folder_recursive(str(pld[0]), False)
-      else:
-        print("Invalid payload arrived")
-    except KeyboardInterrupt:
-      break
-    finally:
-      if pld: queue.task_done()
+      try:
+        pld = self.queue.get()
+
+        if isinstance(pld, list):
+          clone_process = subprocess.Popen(['git', 'clone', str(pld[1]), str(pld[0])], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+          clone_process.wait(Config.clone_timeout_seconds)
+
+          clone_process = None
+
+          # Clean data rightaway
+          if args.clear:
+            clean_folder_recursive(str(pld[0]), False)
+        else:
+          print("Invalid payload arrived")
+      except KeyboardInterrupt:
+        break
+      except subprocess.TimeoutExpired:
+        # Clone failed / too long
+        self.blacklist_repos_lock.acquire()
+        self.blacklist_repos.append(str(pld[0]))
+        self.blacklist_repos_lock.release()
+      finally:
+        if pld:
+          self.repos_in_progress_access_lock.acquire()
+          self.repos_in_progress.remove(str(pld[0]))
+          self.repos_in_progress_access_lock.release()
+
+        if clone_process:
+          clone_process.kill()
 
 if __name__ == '__main__':
   # List of blacklisted repos
   blacklist_repos = []
 
   # Create task queue for workers
-  work_queue = multiprocessing.JoinableQueue(maxsize=MAX_QUEUE_SIZE)
+  manager = multiprocessing.Manager()
+  repos_in_progress_access_lock = manager.Lock()
+  repos_in_progress = manager.list()
+  blacklist_repos = manager.list()
+  blacklist_repos_lock = manager.Lock()
+  work_queue = manager.Queue(maxsize=MAX_QUEUE_SIZE)
 
   # Create downloader processes
-  workers = [multiprocessing.Process(target=download_repo, args=(work_queue,), daemon=True) for _ in range(NUM_OF_WORKERS)]
+  workers = [WorkerProcess(work_queue, repos_in_progress, repos_in_progress_access_lock, blacklist_repos, blacklist_repos_lock) for _ in range(NUM_OF_WORKERS)]
   for worker in workers:
     worker.start()
 
@@ -83,8 +114,7 @@ if __name__ == '__main__':
       start_time -= 86400
 
       print(f"Found {repositories.totalCount} repos")
-
-      tmp_repos = []
+      print(f"Workers allive: {len([worker for worker in workers if worker.is_alive])}")
 
       try:
         for repository in repositories:
@@ -99,12 +129,19 @@ if __name__ == '__main__':
           print(f"Repository: {owner_login}/{repo_name}")
 
           # Check if this repo isnt already downloaded or in queue for download
-          if os.path.exists(repo_path) or repo_path in tmp_repos:
+          repos_in_progress_access_lock.acquire()
+          repo_in_progress = repo_path in repos_in_progress
+          repos_in_progress_access_lock.release()
+
+          if os.path.exists(repo_path) or repo_in_progress:
             print("Repository already downloaded")
             continue
 
           # Check if this repo is not on blacklost (to save some github api calls)
-          if repo_path in blacklist_repos:
+          blacklist_repos_lock.acquire()
+          repo_in_blacklist = repo_path in blacklist_repos
+          blacklist_repos_lock.release()
+          if repo_in_blacklist:
             print("Repository already on blacklist")
             continue
 
@@ -112,7 +149,9 @@ if __name__ == '__main__':
           blplut = [(p in repo_name) for p in BLACKLIST_PHRASES]
           if any(blplut):
             print("Repository on blacklist")
+            blacklist_repos_lock.acquire()
             blacklist_repos.append(repo_path)
+            blacklist_repos_lock.release()
             continue
 
           # Get size of repo
@@ -122,18 +161,20 @@ if __name__ == '__main__':
           # Ignore too large repos (some still could pass because they can have some other github repos as dependency)
           if repo_size > MAX_REPO_SIZE_MB:
             print(f"Repository too large")
+            blacklist_repos_lock.acquire()
             blacklist_repos.append(repo_path)
+            blacklist_repos_lock.release()
             continue
 
           # Append repo to work queue
-          tmp_repos.append(repo_path)
+          repos_in_progress_access_lock.acquire()
+          repos_in_progress.append(repo_path)
+          repos_in_progress_access_lock.release()
+
           work_queue.put([repo_path, repository.clone_url])
       except github.RateLimitExceededException:
         print("\nGithub pull limit exceeded\nWaiting")
         for _ in tqdm(range(Config.error_delay_seconds), unit="s"): time.sleep(1)
-
-      print(f"\nWaiting for batch of {len(tmp_repos)} repositories to finish cloning")
-      work_queue.join()
 
       i += 1
     except KeyboardInterrupt:
@@ -149,6 +190,7 @@ if __name__ == '__main__':
   for worker in workers:
     if worker.is_alive():
       worker.kill()
+      worker.join()
 
   if args.clear:
     print("\nCleaning repositories")
