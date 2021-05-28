@@ -4,6 +4,10 @@ error_delay_seconds = 120
 [github]
 github_app_token = "" # Here put your github app token
 github_req_delay = 0.1
+clone_timeout_seconds = 600
+
+[tokenizer]
+vocabulary_size = 52_000
 
 [model]
 # The maximum sequence length that this model might ever be used with

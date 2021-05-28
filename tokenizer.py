@@ -1,16 +1,15 @@
-from git.index import typ
 from tokenizers import Tokenizer, models, pre_tokenizers, decoders, processors, trainers
 from transformers import PreTrainedTokenizerFast
+from config_loader import Config
 import os
 import argparse
 import sys
-
-TRAIN = True
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input", "-i", help="Path to input data folder", required=False, default="github_data", type=str)
 parser.add_argument("--output", "-o", help="Path to output folder", required=False, default="tokenizers", type=str)
 parser.add_argument("--name", "-n", help="Name of output file", required=False, default="BLTokenizer.json", type=str)
+parser.add_argument("--dont_train", "-T", help="Disable training - only test tokenizer", action="store_false")
 
 args = parser.parse_args()
 assert os.path.exists(args.input) and os.path.isdir(args.input), "Invalid input path"
@@ -25,14 +24,14 @@ for p in PATHS:
 if not os.path.exists(args.output): os.mkdir(args.output)
 TOKENIZER = os.path.join(args.output, args.name)
 
-if TRAIN:
+if args.dont_train:
   tokenizer = Tokenizer(models.BPE())
 
   tokenizer.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=True)
   tokenizer.decoder = decoders.ByteLevel()
   tokenizer.post_processor = processors.ByteLevel(trim_offsets=True)
 
-  trainer = trainers.BpeTrainer(vocab_size=52_000, min_frequency=2, special_tokens=[
+  trainer = trainers.BpeTrainer(vocab_size=Config.vocabulary_size, min_frequency=2, special_tokens=[
     "<s>",
     "<pad>",
     "</s>",
