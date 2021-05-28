@@ -1,24 +1,19 @@
 from transformers import PreTrainedTokenizerFast, GPT2LMHeadModel
 import os
-import sys
 import argparse
 from config_loader import Config
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--tokenizer", "-t", help="Path to tokenizer", required=False, default="BLTokenizer.json", type=str)
-parser.add_argument("--model", "-m", help="Path to valid model forlder", required=True, type=str)
+parser.add_argument("--tokenizer_path", "-t", help="Path to tokenizer file", required=False, default="tokenizers/BLTokenizer.json", type=str)
+parser.add_argument("--model", "-m", help="Path to valid model folder", required=False, default="GPyT", type=str)
 
 args = parser.parse_args()
 
-TOKENIZER = args.tokenizer
+assert os.path.exists(args.tokenizer_path) and os.path.isfile(args.tokenizer_path), "Invalid path to tokenizer file"
+assert os.path.exists(args.model) and os.path.isdir(args.model), "Invalid path to model folder"
+
+TOKENIZER = args.tokenizer_path
 MODEL_PATH = args.model
-
-if not os.path.exists("tokenizers"): os.mkdir("tokenizers")
-TOKENIZER = os.path.join("tokenizers", TOKENIZER)
-
-if not os.path.exists(TOKENIZER) or not os.path.isfile(TOKENIZER):
-  print("Tokenizer doesnt exist")
-  sys.exit(1)
 
 tokenizer = PreTrainedTokenizerFast(tokenizer_file=TOKENIZER)
 tokenizer.add_special_tokens({

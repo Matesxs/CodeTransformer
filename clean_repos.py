@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 from tqdm import tqdm
 from git import rmtree
@@ -12,6 +13,7 @@ def clean_folder_recursive(path:str="repos", tqdm_active:bool=True):
   if not os.path.exists(path) or not os.path.isdir(path): return
 
   iterator = tqdm(os.walk(path)) if tqdm_active else os.walk(path)
+  unsuccess_deletes = []
 
   try:
     for dirpath, dirnames, filenames in iterator:
@@ -22,7 +24,10 @@ def clean_folder_recursive(path:str="repos", tqdm_active:bool=True):
 
       # Delete any blacklisted folder rightaway
       if any([path_ends_with(dirpath, end) for end in BLACKLIST_FOLDERS]):
-        rmtree(dirpath)
+        try:
+          rmtree(dirpath)
+        except:
+          unsuccess_deletes.append(dirpath)
         continue
 
       for f in filenames:
@@ -39,8 +44,23 @@ def clean_folder_recursive(path:str="repos", tqdm_active:bool=True):
           except PermissionError:
             os.chmod(full_path, 0o777)
             os.remove(full_path)
+
+    for uns_path in unsuccess_deletes:
+      success = False
+      while not success:
+        try:
+          rmtree(dirpath)
+          success = True
+        except:
+          time.sleep(0.1)
+          pass
   except KeyboardInterrupt:
     pass
 
 if __name__ == '__main__':
-  clean_folder_recursive()
+  if len(sys.argv) == 2:
+    assert os.path.exists(sys.argv[1]) and os.path.isdir(sys.argv[1]), "Invalid path to repos folder"
+    clean_folder_recursive(sys.argv[1])
+  else:
+    print("Using default path to repos")
+    clean_folder_recursive()

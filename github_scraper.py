@@ -15,11 +15,12 @@ parser.add_argument("--search", "-s", help="Search phrase (blank for all)", requ
 parser.add_argument("--language", "-l", help="Language to search for", required=False, default="python", type=str)
 parser.add_argument("--offset", "-O", help="Time offset in days", required=False, default=0, type=int)
 parser.add_argument("--workers", "-w", help="Number of downloader workers", required=False, default=1, type=int)
-parser.add_argument("--queue", "-q", help="Max repository queue length", required=False, default=50, type=int)
+parser.add_argument("--queue", "-q", help="Max repository queue length", required=False, default=10, type=int)
 parser.add_argument("--max_repo_size", "-M", help="Maximum size of repository to clone in MB", required=False, default=500, type=int)
 parser.add_argument("--clear", "-c", help="Clean downloaded repository rightaway", action="store_true")
 parser.add_argument("--blacklist", "-b", help="Blacklisted names separated by ;", required=False, default="hack;test", type=str)
 parser.add_argument("--debug", "-d", help="Show more info about cloned repositories", action="store_true")
+parser.add_argument("--output", "-o", help="Path to output folder", required=False, default="repos", type=str)
 
 args = parser.parse_args()
 
@@ -37,7 +38,7 @@ git = Github(Config.github_token)
 end_time = time.time() - DAYS_BACK_OFFSET * 86400
 start_time = end_time - 86400
 
-if not os.path.exists("repos"): os.mkdir("repos")
+if not os.path.exists(args.output): os.mkdir(args.output)
 
 class WorkerProcess(multiprocessing.Process):
   def __init__(self, queue, repos_in_progress, repos_in_progress_access_lock, blacklist_repos, blacklist_repos_lock) -> None:
@@ -127,7 +128,7 @@ if __name__ == '__main__':
 
           repo_name = repository.name
           owner_login = repository.owner.login.replace('.', '').replace('/', '')
-          repo_path = f"repos/{owner_login}/{repo_name}"
+          repo_path = f"{args.output}/{owner_login}/{repo_name}"
 
           if args.debug:
             print(f"\nCurrent time: {start_time_str} - {end_time_str} ({DAYS_BACK_OFFSET + i} DBO)")
@@ -204,4 +205,4 @@ if __name__ == '__main__':
 
   if args.clear:
     print("\nCleaning repositories")
-    clean_folder_recursive("repos", True)
+    clean_folder_recursive(args.output, True)

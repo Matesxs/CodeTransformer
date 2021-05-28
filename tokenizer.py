@@ -1,24 +1,29 @@
+from git.index import typ
 from tokenizers import Tokenizer, models, pre_tokenizers, decoders, processors, trainers
 from transformers import PreTrainedTokenizerFast
 import os
+import argparse
 import sys
 
-if len(sys.argv) == 2:
-  TOKENIZER = sys.argv[1]
-else:
-  print("Using default tokenizer BLTokenizer.json")
-  TOKENIZER = "BLTokenizer.json"
-
-PATHS = [os.path.join("github_data", f) for f in os.listdir("github_data")]
 TRAIN = True
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--input", "-i", help="Path to input data folder", required=False, default="github_data", type=str)
+parser.add_argument("--output", "-o", help="Path to output folder", required=False, default="tokenizers", type=str)
+parser.add_argument("--name", "-n", help="Name of output file", required=False, default="BLTokenizer.json", type=str)
+
+args = parser.parse_args()
+assert os.path.exists(args.input) and os.path.isdir(args.input), "Invalid input path"
+
+PATHS = [os.path.join(args.input, f) for f in os.listdir(args.input)]
 
 for p in PATHS:
   if not os.path.exists(p) or not os.path.isfile(p):
     print(f"Invalid input file {p}")
     sys.exit(1)
 
-if not os.path.exists("tokenizers"): os.mkdir("tokenizers")
-TOKENIZER = os.path.join("tokenizers", TOKENIZER)
+if not os.path.exists(args.output): os.mkdir(args.output)
+TOKENIZER = os.path.join(args.output, args.name)
 
 if TRAIN:
   tokenizer = Tokenizer(models.BPE())

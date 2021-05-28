@@ -1,26 +1,26 @@
 from transformers import PreTrainedTokenizerFast, GPT2Config, GPT2LMHeadModel, DataCollatorForLanguageModeling, Trainer, TrainingArguments
 from datasets import load_dataset
 from config_loader import Config
+import argparse
 import os
 import sys
 
-if len(sys.argv) == 2:
-  TOKENIZER = sys.argv[1]
-else:
-  print("Using default tokenizer BLTokenizer.json")
-  TOKENIZER = "BLTokenizer.json"
+parser = argparse.ArgumentParser()
+parser.add_argument("--input_data", "-i", help="Path to training data", required=False, default="github_data", type=str)
+parser.add_argument("--tokenizer_path", "-t", help="Path to tokenizer file", required=False, default="tokenizers/BLTokenizer.json", type=str)
+parser.add_argument("--output", "-o", help="Output folder path for model", required=False, default="GPyT", type=str)
 
-PATHS = [os.path.join("github_data", f) for f in os.listdir("github_data")]
+args = parser.parse_args()
+
+assert os.path.exists(args.input_data) and os.path.isdir(args.input_data), "Invalid training data path"
+assert os.path.exists(args.tokenizer_path) and os.path.isfile(args.tokenizer_path), "Invalid path to tokenizer file"
+
+PATHS = [os.path.join(args.input_data, f) for f in os.listdir(args.input_data)]
 
 EPOCHS = Config.epochs
 BATCH_SIZE = Config.batch_size
 
-if not os.path.exists("tokenizers"): os.mkdir("tokenizers")
-TOKENIZER = os.path.join("tokenizers", TOKENIZER)
-
-if not os.path.exists(TOKENIZER) or not os.path.isfile(TOKENIZER):
-  print("Tokenizer doesnt exist")
-  sys.exit(1)
+TOKENIZER = args.tokenizer_path
 
 tokenizer = PreTrainedTokenizerFast(tokenizer_file=TOKENIZER)
 tokenizer.add_special_tokens({
@@ -44,10 +44,10 @@ dataset = dataset["train"]
 
 data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=True, mlm_probability=0.15)
 
-if not os.path.exists("GPyT"): os.mkdir("GPyT")
+if not os.path.exists(args.output): os.mkdir(args.output)
 
 training_args = TrainingArguments(
-  output_dir="./GPyT",
+  output_dir=args.output,
   overwrite_output_dir=True,
   num_train_epochs=EPOCHS,
   per_device_train_batch_size=BATCH_SIZE,
@@ -66,4 +66,4 @@ trainer = Trainer(
 )
 
 trainer.train()
-trainer.save_model("GPyT")
+trainer.save_model(args.output)

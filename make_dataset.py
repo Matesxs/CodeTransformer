@@ -1,21 +1,26 @@
 import os
-import sys
+import argparse
 from tqdm import tqdm
 from config_loader import Config
 
 MAX_CHAR_LENGTH = Config.n_positions
 MIN_CHAR_LENGTH = MAX_CHAR_LENGTH / 2
 
-assert len(sys.argv) == 2, "Enter output dataset name as fist argument (.txt)"
-OUTPUT_PATH = sys.argv[1]
+parser = argparse.ArgumentParser()
+parser.add_argument("--input", "-i", help="Path to input repos folder", required=False, default="repos", type=str)
+parser.add_argument("--output", "-o", help="Path to output folder", required=False, default="github_data", type=str)
+parser.add_argument("--name", "-n", help="Name of output file", required=True, type=str)
+
+args = parser.parse_args()
+assert os.path.exists(args.input) and os.path.isdir(args.input), "Invalid input path"
 
 NEWLINE_CHAR = "<newl>"
 
-if not os.path.exists("github_data"): os.mkdir("github_data")
-OUTPUT_PATH = os.path.join("github_data", OUTPUT_PATH)
+if not os.path.exists(args.output): os.mkdir(args.output)
+OUTPUT_PATH = os.path.join(args.output, args.name)
 
 python_files = []
-for dirpath, dirnames, filenames in tqdm(os.walk("repos")):
+for dirpath, dirnames, filenames in tqdm(os.walk(args.input)):
   for f in filenames:
     full_path = os.path.join(dirpath, f)
 
