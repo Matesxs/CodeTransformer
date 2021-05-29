@@ -25,7 +25,7 @@ class Config:
   github_req_delay = get_attr("github", "github_req_delay")
   clone_timeout_seconds = get_attr("github", "clone_timeout_seconds")
 
-  vocabulary_size = get_attr("tokezizer", "vocabulary_size")
+  vocabulary_size = get_attr("tokenizer", "vocabulary_size")
 
   n_positions = get_attr("model", "n_positions")
   n_ctx = get_attr("model", "n_ctx")
