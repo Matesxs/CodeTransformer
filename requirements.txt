@@ -1,5 +1,5 @@
 transformers~=4.6.1
-datasets~=1.6.2
+datasets~=1.7.0
 tokenizers~=0.10.2
 tqdm~=4.49.0
 PyGithub~=1.55
