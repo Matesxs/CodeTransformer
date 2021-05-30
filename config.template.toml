@@ -4,28 +4,34 @@ error_delay_seconds = 120
 [github]
 github_app_token = "" # Here put your github app token
 github_req_delay = 0.1
-clone_timeout_seconds = 600
+clone_timeout_seconds = 300
 
 [tokenizer]
 vocabulary_size = 52_000
+new_line_tag = "<newl>"
 
 [model]
-# The maximum sequence length that this model might ever be used with
+# The maximum sequence length that this model might ever be used with (Default: 1024)
 n_positions = 512
 
-# Dimensionality of the causal mask (usually same as n_positions)
+# Dimensionality of the causal mask (usually same as n_positions) (Default: 1024)
 n_ctx = 512
 
-# Dimensionality of the embeddings and hidden states.
-n_embd = 768
+# Dimensionality of the embeddings and hidden states. (Default: 768)
+n_embd = 512
 
-# Number of hidden layers in the Transformer encoder.
-n_layer = 12
+# Number of hidden layers in the Transformer encoder. (Default: 12)
+n_layer = 8
 
-# Number of attention heads for each attention layer in the Transformer encoder.
-n_head = 12
+# Number of attention heads for each attention layer in the Transformer encoder. (Default: 12)
+n_head = 8
 
 [training]
-batch_size = 4
+batch_size = 8
 epochs = 1
-save_steps = 1_000
+save_steps = 2_000
+
+[generate]
+prediction_size = 100
+beam_count = 3
+num_return_sequences = 3

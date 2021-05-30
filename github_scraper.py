@@ -10,14 +10,14 @@ from clean_repos import clean_folder_recursive
 import argparse
 from config_loader import Config
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="Script to download repositories from github based on set params")
 parser.add_argument("--search", "-s", help="Search phrase (blank for all)", required=False, default=None, type=str)
 parser.add_argument("--language", "-l", help="Language to search for", required=False, default="python", type=str)
 parser.add_argument("--offset", "-O", help="Time offset in days", required=False, default=0, type=int)
 parser.add_argument("--workers", "-w", help="Number of downloader workers", required=False, default=1, type=int)
 parser.add_argument("--queue", "-q", help="Max repository queue length", required=False, default=10, type=int)
 parser.add_argument("--max_repo_size", "-M", help="Maximum size of repository to clone in MB", required=False, default=500, type=int)
-parser.add_argument("--clear", "-c", help="Clean downloaded repository rightaway", action="store_true")
+parser.add_argument("--clear", "-c", help="Clean downloaded repository rightaway (use only on ssd or it will hurt performance)", action="store_true")
 parser.add_argument("--blacklist", "-b", help="Blacklisted names separated by ;", required=False, default="hack;test", type=str)
 parser.add_argument("--debug", "-d", help="Show more info about cloned repositories", action="store_true")
 parser.add_argument("--output", "-o", help="Path to output folder", required=False, default="repos", type=str)
@@ -41,7 +41,7 @@ start_time = end_time - 86400
 if not os.path.exists(args.output): os.mkdir(args.output)
 
 class WorkerProcess(multiprocessing.Process):
-  def __init__(self, queue, repos_in_progress, repos_in_progress_access_lock, blacklist_repos, blacklist_repos_lock) -> None:
+  def __init__(self, queue, repos_in_progress, repos_in_progress_access_lock, blacklist_repos, blacklist_repos_lock, working_notify, working_notify_lock) -> None:
     super(WorkerProcess, self).__init__()
     self.daemon = True
 
@@ -50,6 +50,8 @@ class WorkerProcess(multiprocessing.Process):
     self.repos_in_progress_access_lock = repos_in_progress_access_lock
     self.blacklist_repos = blacklist_repos
     self.blacklist_repos_lock = blacklist_repos_lock
+    self.working_notify = working_notify
+    self.working_notify_lock = working_notify_lock
 
   def run(self) -> None:
     while True:
@@ -58,6 +60,8 @@ class WorkerProcess(multiprocessing.Process):
 
       try:
         pld = self.queue.get()
+        with self.working_notify_lock:
+          self.working_notify.value += 1
 
         if isinstance(pld, list):
           clone_process = subprocess.Popen(['git', 'clone', str(pld[1]), str(pld[0])], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
@@ -83,6 +87,9 @@ class WorkerProcess(multiprocessing.Process):
           self.repos_in_progress.remove(str(pld[0]))
           self.repos_in_progress_access_lock.release()
 
+        with self.working_notify_lock:
+          self.working_notify.value -= 1
+
         if clone_process:
           clone_process.kill()
 
@@ -96,10 +103,12 @@ if __name__ == '__main__':
   repos_in_progress = manager.list()
   blacklist_repos = manager.list()
   blacklist_repos_lock = manager.Lock()
+  working_notify = manager.Value(int, 0)
+  working_notify_lock = manager.Lock()
   work_queue = manager.Queue(maxsize=MAX_QUEUE_SIZE)
 
   # Create downloader processes
-  workers = [WorkerProcess(work_queue, repos_in_progress, repos_in_progress_access_lock, blacklist_repos, blacklist_repos_lock) for _ in range(NUM_OF_WORKERS)]
+  workers = [WorkerProcess(work_queue, repos_in_progress, repos_in_progress_access_lock, blacklist_repos, blacklist_repos_lock, working_notify, working_notify_lock) for _ in range(NUM_OF_WORKERS)]
   for worker in workers:
     worker.start()
 
@@ -117,7 +126,7 @@ if __name__ == '__main__':
 
       number_of_repositories = repositories.totalCount
       print(f"\nFound {number_of_repositories} repos")
-      print(f"Workers allive: {len([worker for worker in workers if worker.is_alive])}")
+      print(f"Workers allive: {len([worker for worker in workers if worker.is_alive])} - Working: {working_notify.value}")
       if not args.debug:
         print(f"Current time: {start_time_str} - {end_time_str} ({DAYS_BACK_OFFSET + i} DBO)")
 

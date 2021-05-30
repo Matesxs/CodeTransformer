@@ -26,6 +26,7 @@ class Config:
   clone_timeout_seconds = get_attr("github", "clone_timeout_seconds")
 
   vocabulary_size = get_attr("tokenizer", "vocabulary_size")
+  new_line_tag = get_attr("tokenizer", "new_line_tag")
 
   n_positions = get_attr("model", "n_positions")
   n_ctx = get_attr("model", "n_ctx")
@@ -36,3 +37,7 @@ class Config:
   batch_size = get_attr("training", "batch_size")
   epochs = get_attr("training", "epochs")
   save_steps = get_attr("training", "save_steps")
+
+  prediction_size = get_attr("generate", "prediction_size")
+  beam_count = get_attr("generate", "beam_count")
+  num_return_sequences = get_attr("generate", "num_return_sequences")

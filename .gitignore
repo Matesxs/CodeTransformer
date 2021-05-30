@@ -8,3 +8,5 @@ config.toml
 *.sqlite
 .vscode/
 .editorconfig
+cache/
+GPyT/
