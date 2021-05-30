@@ -26,12 +26,46 @@ tokenizer.add_special_tokens({
 
 model = GPT2LMHeadModel.from_pretrained(MODEL_PATH).to("cuda")
 
-while True:
-  inp = input(">>> ")
-  input_ids = tokenizer.encode(inp, return_tensors="pt").to("cuda")
-  beam_output = model.generate(input_ids, max_length=Config.n_positions, num_beams=10, temperature=0.7, no_repeat_ngram_size=5, num_return_sequences=1)
+def decode_newlines(inp):
+  return inp.replace(Config.new_line_tag, "\n")
 
-  for beam in beam_output:
-    out = tokenizer.decode(beam)
-    fout = out.replace("<newl>", "\n")
-    print(str(fout))
+def encode_newlines(inp):
+  return inp.replace("\n", Config.new_line_tag)
+
+def auto_complete(inp):
+  inp = encode_newlines(inp)
+  newline_count = inp.count(Config.new_line_tag)
+
+  input_ids = tokenizer.encode(inp, return_tensors="pt").to("cuda")
+
+  model_output = model.generate(input_ids,
+                                max_length=Config.prediction_size, 
+                                num_beams=Config.beam_count, 
+                                temperature=0.7, 
+                                no_repeat_ngram_size=5, 
+                                num_return_sequences=Config.num_return_sequences, 
+                                return_dict_in_generate=True, 
+                                output_scores=True)
+
+  sequence = model_output["sequences"][0]
+  decoded = decode_newlines(tokenizer.decode(sequence))
+
+  # print("Debug whole decoded message:")
+  # print(40*"-")
+  # print(decoded)
+  # print(40*"-")
+
+  auto_completed = ""
+  split = decoded.split("\n")
+  for s in split[:newline_count+1]:
+    auto_completed += s + "\n"
+
+  return auto_completed
+
+while True:
+  try:
+    inp = input(">>> ")
+    print("\nAutocomplete:\n" + auto_complete(inp.rstrip()))
+  except KeyboardInterrupt:
+    break
+
