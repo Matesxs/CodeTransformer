@@ -94,9 +94,6 @@ class WorkerProcess(multiprocessing.Process):
           clone_process.kill()
 
 if __name__ == '__main__':
-  # List of blacklisted repos
-  blacklist_repos = []
-
   # Create task queue for workers
   manager = multiprocessing.Manager()
   repos_in_progress_access_lock = manager.Lock()
