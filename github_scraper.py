@@ -14,7 +14,7 @@ import json
 parser = argparse.ArgumentParser(description="Script to download repositories from github based on set params")
 parser.add_argument("--search", "-s", help="Search phrase (blank for all)", required=False, default=None, type=str)
 parser.add_argument("--language", "-l", help="Language to search for", required=False, default="python", type=str)
-parser.add_argument("--offset", "-O", help="Time offset in days", required=False, default=None, type=int)
+parser.add_argument("--offset", "-O", help="Time offset in days, when not set and there are metadata saved in output folder then craping will resume from point where it ended", required=False, default=None, type=int)
 parser.add_argument("--workers", "-w", help="Number of downloader workers", required=False, default=1, type=int)
 parser.add_argument("--queue", "-q", help="Max repository queue length", required=False, default=10, type=int)
 parser.add_argument("--max_repo_size", "-M", help="Maximum size of repository to clone in MB", required=False, default=500, type=int)
