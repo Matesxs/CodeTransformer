@@ -1,4 +1,3 @@
-from genericpath import exists
 import os
 import sys
 import argparse
@@ -75,6 +74,7 @@ with open(OUTPUT_PATH, "a", encoding="utf-8") as f:
     except:
       pass
 
+tries = 0
 if args.delete:
   if os.path.exists(args.input) and os.path.isdir(args.input):
     finished = False
@@ -83,5 +83,9 @@ if args.delete:
         shutil.rmtree(args.input)
         finished = True
       except:
-        time.sleep(0.1)
+        time.sleep(5)
+        tries += 1
+        if tries > 500:
+          print("Some files cannot be deleted, delete them manualy")
+          break
         pass
