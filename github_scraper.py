@@ -123,6 +123,7 @@ if __name__ == '__main__':
     worker.start()
 
   i = 0
+  number_of_repositories = 0
   while True:
     try:
       start_time_str = datetime.utcfromtimestamp(start_time).strftime("%Y-%m-%d")
@@ -231,4 +232,4 @@ if __name__ == '__main__':
 
   if os.path.exists(meta_path) and os.path.isfile(meta_path): os.remove(meta_path)
   with open(meta_path, "w") as f:
-    json.dump({"offset": DAYS_BACK_OFFSET + i}, f)
+    json.dump({"offset": (DAYS_BACK_OFFSET + i) - (MAX_QUEUE_SIZE // number_of_repositories + 1)}, f)
