@@ -36,6 +36,7 @@ if DAYS_BACK_OFFSET is None:
     with open(meta_path, "r") as f:
       data = json.load(f)
       DAYS_BACK_OFFSET = int(data["offset"])
+      if DAYS_BACK_OFFSET < 0: DAYS_BACK_OFFSET = 0
   else:
     DAYS_BACK_OFFSET = 0
 
