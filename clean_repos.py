@@ -4,7 +4,7 @@ import time
 from tqdm import tqdm
 from git import rmtree
 
-BLACKLIST_FOLDERS = [".git", ".venv", "__pycache__"]
+BLACKLIST_FOLDERS = [".git", ".venv", "venv", "__pycache__", ".idea", ".vscode"]
 
 def path_ends_with(path, ending):
   return path.endswith(ending) or path.endswith(rf"{ending}\\") or path.endswith(f"{ending}/")
@@ -22,7 +22,7 @@ def clean_folder_recursive(path:str="repos", tqdm_active:bool=True):
         break
 
       # Delete any blacklisted folder rightaway
-      if any([path_ends_with(dirpath, end) for end in BLACKLIST_FOLDERS]):
+      if any([path_ends_with(dirpath, end) for end in BLACKLIST_FOLDERS]) or not os.listdir(dirpath):
         if os.path.exists(dirpath):
           success = False
 
@@ -37,6 +37,7 @@ def clean_folder_recursive(path:str="repos", tqdm_active:bool=True):
           continue
 
       for f in filenames:
+        if f == "_meta_download.json": continue
         full_path = os.path.join(dirpath, f)
         if not os.path.exists(full_path): continue
 
