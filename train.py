@@ -1,75 +1,101 @@
 from transformers import PreTrainedTokenizerFast, GPT2Config, GPT2LMHeadModel, DataCollatorForLanguageModeling, Trainer, TrainingArguments
 from datasets import load_dataset
 from config_loader import Config
+import shutil
+from pathlib import Path
 import argparse
 import os
+import sys
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--input_data", "-i", help="Path to training data", required=False, default="github_data", type=str)
-parser.add_argument("--tokenizer_path", "-t", help="Path to tokenizer file", required=False, default="tokenizers/BLTokenizer.json", type=str)
-parser.add_argument("--output", "-o", help="Output folder path for model", required=False, default="GPyT", type=str)
-parser.add_argument("--cache_dir", "-c", help="Path to directory where dataset cache will be stored (best on some ssd)", required=False, default=None, type=str)
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--input_data", "-i", help="Path to training data", required=False, default="github_data", type=str)
+  parser.add_argument("--tokenizer_path", "-t", help="Path to tokenizer file", required=False, default="tokenizers/BLTokenizer.json", type=str)
+  parser.add_argument("--output", "-o", help="Output folder path for model", required=False, default="GPyT", type=str)
+  parser.add_argument("--cache_dir", "-c", help="Path to directory where dataset cache will be stored (best on some ssd)", required=False, default=None, type=str)
+  parser.add_argument("--clear_cache_dir", "-C", help="Delete cache directory, if None is provided (default is used) then default from huggingface will be removed", action="store_true")
 
-args = parser.parse_args()
+  args = parser.parse_args()
 
-assert os.path.exists(args.input_data) and os.path.isdir(args.input_data), "Invalid training data path"
-assert os.path.exists(args.tokenizer_path) and os.path.isfile(args.tokenizer_path), "Invalid path to tokenizer file"
+  assert os.path.exists(args.input_data) and os.path.isdir(args.input_data), "Invalid training data path"
+  assert os.path.exists(args.tokenizer_path) and os.path.isfile(args.tokenizer_path), "Invalid path to tokenizer file"
 
-PATHS = [os.path.join(args.input_data, f) for f in os.listdir(args.input_data)]
+  PATHS = [os.path.join(args.input_data, f) for f in os.listdir(args.input_data)]
 
-EPOCHS = Config.epochs
-BATCH_SIZE = Config.batch_size
+  EPOCHS = Config.epochs
+  BATCH_SIZE = Config.batch_size
 
-TOKENIZER = args.tokenizer_path
+  TOKENIZER = args.tokenizer_path
 
-tokenizer = PreTrainedTokenizerFast(tokenizer_file=TOKENIZER)
-tokenizer.add_special_tokens({
-  "eos_token": "</s>",
-  "bos_token": "<s>",
-  "unk_token": "<unk>",
-  "pad_token": "<pad>",
-  "mask_token": "<mask>"
-})
+  if args.clear_cache_dir:
+    try:
+      if args.cache_dir is None:
+        cache_dir = os.path.join(str(Path.home()), r".cache\huggingface\datasets\text")
+        if os.path.exists(cache_dir):
+          print("Removing cache forlder")
+          shutil.rmtree(cache_dir)
+      else:
+        if os.path.exists(args.cache_dir):
+          print("Removing cache forlder")
+          shutil.rmtree(args.cache_dir)
+    except KeyboardInterrupt:
+      print("User interrupt")
+      sys.exit(1)
 
-mod_config = GPT2Config(vocab_size=tokenizer.vocab_size, bos_token_id=tokenizer.bos_token_id, eos_token_id=tokenizer.eos_token_id,
-                        n_positions=Config.n_positions, n_ctx=Config.n_ctx, n_embd=Config.n_embd, n_layer=Config.n_layer, n_head=Config.n_head)
-model = GPT2LMHeadModel(mod_config)
+  tokenizer = PreTrainedTokenizerFast(tokenizer_file=TOKENIZER)
+  tokenizer.add_special_tokens({
+    "eos_token": "</s>",
+    "bos_token": "<s>",
+    "unk_token": "<unk>",
+    "pad_token": "<pad>",
+    "mask_token": "<mask>"
+  })
 
-def encode(lines):
-  return tokenizer(lines["text"], add_special_tokens=True, truncation=True, max_length=Config.n_positions)
+  mod_config = GPT2Config(vocab_size=tokenizer.vocab_size, bos_token_id=tokenizer.bos_token_id, eos_token_id=tokenizer.eos_token_id,
+                          n_positions=Config.n_positions, n_ctx=Config.n_ctx, n_embd=Config.n_embd, n_layer=Config.n_layer, n_head=Config.n_head)
+  model = GPT2LMHeadModel(mod_config)
 
-dataset = load_dataset("text", data_files=PATHS, cache_dir=args.cache_dir)
-dataset.set_transform(encode)
-dataset = dataset["train"]
+  def encode(lines):
+    return tokenizer(lines["text"], add_special_tokens=True, truncation=True, max_length=Config.n_positions)
 
-data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=True, mlm_probability=0.15)
+  try:
+    dataset = load_dataset("text", data_files=PATHS, cache_dir=args.cache_dir)
+    dataset.set_transform(encode)
+    dataset = dataset["train"]
+  except KeyboardInterrupt:
+    print("User interrupt")
+    sys.exit(1)
 
-if not os.path.exists(args.output): os.mkdir(args.output)
+  data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=True, mlm_probability=0.15)
 
-training_args = TrainingArguments(
-  output_dir=args.output,
-  overwrite_output_dir=True,
-  num_train_epochs=EPOCHS,
-  per_device_train_batch_size=BATCH_SIZE,
-  save_steps=Config.save_steps,
-  save_total_limit=2,
-  prediction_loss_only=True,
-  remove_unused_columns=False
-)
+  if not os.path.exists(args.output): os.mkdir(args.output)
 
-trainer = Trainer(
-  model=model,
-  args=training_args,
-  data_collator=data_collator,
-  train_dataset=dataset
-)
+  training_args = TrainingArguments(
+    output_dir=args.output,
+    overwrite_output_dir=True,
+    num_train_epochs=EPOCHS,
+    per_device_train_batch_size=BATCH_SIZE,
+    save_steps=Config.save_steps,
+    save_total_limit=2,
+    prediction_loss_only=True,
+    remove_unused_columns=False,
+    logging_dir=os.path.join(args.output, "logs")
+  )
 
-try:
-  if any([("checkpoint" in p) for p in os.listdir(args.output)]):
-    trainer.train(resume_from_checkpoint=True)
-  else:
-    trainer.train()
-    
-  trainer.save_model(args.output)
-except KeyboardInterrupt:
-  pass
+  trainer = Trainer(
+    model=model,
+    args=training_args,
+    data_collator=data_collator,
+    train_dataset=dataset
+  )
+
+  try:
+    if any([("checkpoint" in p) for p in os.listdir(args.output)]):
+      trainer.train(resume_from_checkpoint=True)
+    else:
+      trainer.train()
+
+    trainer.save_model(args.output)
+  except KeyboardInterrupt:
+    print("User interrupt")
+    sys.exit(1)
