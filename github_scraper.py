@@ -9,11 +9,12 @@ import subprocess
 from clean_repos import clean_folder_recursive
 import argparse
 from config_loader import Config
+import json
 
 parser = argparse.ArgumentParser(description="Script to download repositories from github based on set params")
 parser.add_argument("--search", "-s", help="Search phrase (blank for all)", required=False, default=None, type=str)
 parser.add_argument("--language", "-l", help="Language to search for", required=False, default="python", type=str)
-parser.add_argument("--offset", "-O", help="Time offset in days", required=False, default=0, type=int)
+parser.add_argument("--offset", "-O", help="Time offset in days", required=False, default=None, type=int)
 parser.add_argument("--workers", "-w", help="Number of downloader workers", required=False, default=1, type=int)
 parser.add_argument("--queue", "-q", help="Max repository queue length", required=False, default=10, type=int)
 parser.add_argument("--max_repo_size", "-M", help="Maximum size of repository to clone in MB", required=False, default=500, type=int)
@@ -27,16 +28,27 @@ args = parser.parse_args()
 NUM_OF_WORKERS = args.workers
 MAX_QUEUE_SIZE = args.queue
 
+meta_path = os.path.join(args.output, "_meta_download.json")
+
 DAYS_BACK_OFFSET = args.offset
+if DAYS_BACK_OFFSET is None:
+  if os.path.exists(meta_path) and os.path.isfile(meta_path):
+    with open(meta_path, "r") as f:
+      data = json.load(f)
+      DAYS_BACK_OFFSET = int(data["offset"])
+  else:
+    DAYS_BACK_OFFSET = 0
+
 QUERY_BASE = f"{args.search} language:{args.language}" if args.search else f"language:{args.language}"
 MAX_REPO_SIZE_MB = args.max_repo_size
 
 BLACKLIST_PHRASES = args.blacklist.split(";")
 
 git = Github(Config.github_token)
+TIME_STEP_SIZE = 86400
 
-end_time = time.time() - DAYS_BACK_OFFSET * 86400
-start_time = end_time - 86400
+end_time = time.time() - DAYS_BACK_OFFSET * TIME_STEP_SIZE
+start_time = end_time - TIME_STEP_SIZE
 
 if not os.path.exists(args.output): os.mkdir(args.output)
 
@@ -118,10 +130,13 @@ if __name__ == '__main__':
       query = f"{QUERY_BASE} created:{start_time_str}..{end_time_str}"
       repositories = git.search_repositories(query)
 
-      end_time -= 86400
-      start_time -= 86400
+      end_time -= TIME_STEP_SIZE
+      start_time -= TIME_STEP_SIZE
 
       number_of_repositories = repositories.totalCount
+      if number_of_repositories >= 1000:
+        TIME_STEP_SIZE = 86400 / 2
+
       print(f"\nFound {number_of_repositories} repos")
       print(f"Workers allive: {len([worker for worker in workers if worker.is_alive])} - Working: {working_notify.value}")
       if not args.debug:
@@ -212,3 +227,7 @@ if __name__ == '__main__':
   if args.clear:
     print("\nCleaning repositories")
     clean_folder_recursive(args.output, True)
+
+  if os.path.exists(meta_path) and os.path.isfile(meta_path): os.remove(meta_path)
+  with open(meta_path, "w") as f:
+    json.dump({"offset": DAYS_BACK_OFFSET + i}, f)
