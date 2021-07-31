@@ -136,8 +136,6 @@ if __name__ == '__main__':
       start_time -= TIME_STEP_SIZE
 
       number_of_repositories = repositories.totalCount
-      if number_of_repositories >= 1000:
-        TIME_STEP_SIZE = 86400 / 2
 
       print(f"\nFound {number_of_repositories} repos")
       print(f"Workers allive: {len([worker for worker in workers if worker.is_alive])} - Working: {working_notify.value}")
